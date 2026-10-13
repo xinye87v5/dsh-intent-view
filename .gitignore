@@ -1,0 +1,24 @@
+# 构建产物
+lib/
+node_modules/
+
+# 本插件的 fixture（research/ 里）**进版本控制**：它撑着交叉校验断言，
+# 而那个断言必须能在没有 Python 的环境里跑。
+tools/probes/.out/
+
+# 真实会话导出的语料**不进版本库**：那是使用者自己的会话内容（即便联系方式已打码），
+# 不是本插件的研究产出。合成语料（synthetic-*.txt）照旧进库，它撑着交叉校验断言。
+research/session-*.txt
+
+# ── 真实会话的研究产物：**绝不进公开库** ────────────────────────────────────
+# 这些文件里有真实指令、真实链接（甚至带 token 的 URL）。原来的 .gitignore 只挡住
+# research/session-*.txt，而逐会话的标注清单、结构导出、fixture 都漏了。
+# 具体前缀写在 `.git/info/exclude`（本地，不进版本库）——**版本库里不出现真实会话 id**。
+research/session-sweep-*
+research/fixture-*.json
+research/task-tree-*.md
+research/semantic-labels-*.md
+research/dag-label-sheet-session-*.md
+# 探针产物（顶层 .out/ 与 tools/probes/.out/ 都是；原来只挡了后者，
+# 结果 .out/graph/*.json（真实会话的图谱投影）混进了发布提交）
+.out/

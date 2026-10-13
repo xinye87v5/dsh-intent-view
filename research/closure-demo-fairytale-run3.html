@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>闭包演示（graph-view 渲染）</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box }
+  body { margin:0; font:14px/1.6 system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+         background:#f6f7f9; color:#15181d }
+  header { padding:18px 22px 14px; background:#fff; border-bottom:1px solid #e4e7ec }
+  h1 { margin:0 0 6px; font-size:17px }
+  p.lead { margin:0 0 10px; color:#4b5563; max-width:76ch }
+  .legend { display:flex; gap:18px; flex-wrap:wrap; font-size:12.5px; color:#4b5563 }
+  .key { display:inline-flex; align-items:center; gap:7px }
+  .solid { width:34px; height:0; border-top:2.2px solid #111827 }
+  .dashed { width:34px; height:0; border-top:2.2px dashed #9aa3af }
+  .wrap { padding:16px 22px 40px; display:grid; gap:22px }
+  section { background:#fff; border:1px solid #e4e7ec; border-radius:12px; overflow:hidden }
+  section > h2 { margin:0; padding:12px 16px; font-size:14.5px; border-bottom:1px solid #eef0f4; display:flex;
+                 justify-content:space-between; align-items:baseline; gap:12px }
+  section > h2 .meta { font-size:12px; color:#6b7280; font-weight:400 }
+  section > p { margin:0; padding:10px 16px 0; color:#4b5563; font-size:13px }
+  .canvas { overflow:auto; max-height:78vh; padding:12px 16px 18px; background:#fff }
+  .canvas svg { display:block }
+  footer { padding:0 22px 34px; color:#6b7280; font-size:12.5px }
+  code { background:#f0f1f4; padding:0 4px; border-radius:4px }
+</style>
+<header>
+  <h1>“闭包”演示：挂具体节点时，把祖先也一起挂上</h1>
+  <p class="lead">图由 <code>graph-view</code> 的渲染器生成（<code>graphview.py render</code>，layered 布局）。
+    左边一列是**回合**（按时间顺序），右边各列按**层级深度**排任务节点。
+    两张图的任务树完全一样，差别只在**回合连出去的边**。</p>
+  <div class="legend">
+    <span class="key"><span class="solid"></span>实线 = <code>derived</code>：模型自己给的落点</span>
+    <span class="key"><span class="dashed"></span>虚线 = <code>inferred</code>：闭包补出来的祖先边</span>
+    <span class="key">彩色边框（warn）= 该节点没收到任何回合</span>
+  </div>
+</header>
+<div class="wrap">
+  <section>
+    <h2>原样（模型给的落点）<span class="meta">tools/probes/.out/graph/fairytale-run3-raw.json · 1576×3654</span></h2>
+    <p>回合只连到它自己给的那些节点。</p>
+    <div class="canvas">
+      <svg xmlns="http://www.w3.org/2000/svg" width="1576" height="3654" viewBox="0 0 1576 3654" font-family="&#x27;Noto Sans CJK SC&#x27;,&#x27;Source Han Sans SC&#x27;,&#x27;PingFang SC&#x27;,&#x27;Hiragino Sans GB&#x27;,&#x27;Microsoft YaHei&#x27;,&#x27;WenQuanYi Zen Hei&#x27;,-apple-system,BlinkMacSystemFont,&#x27;Segoe UI&#x27;,sans-serif" style="background:#ffffff">
+      <path d="M 568.0 1806.5 C 628.0 1806.5, 628.0 1636.5, 688.0 1636.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1636.5 C 948.0 1636.5, 948.0 1424.0, 1008.0 1424.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 1424.0 C 1268.0 1424.0, 1268.0 1551.5, 1328.0 1551.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 1424.0 C 1268.0 1424.0, 1268.0 1636.5, 1328.0 1636.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1636.5 C 948.0 1636.5, 948.0 1509.0, 1008.0 1509.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 1509.0 C 1268.0 1509.0, 1268.0 1721.5, 1328.0 1721.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 568.0 1806.5 C 628.0 1806.5, 628.0 1721.5, 688.0 1721.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 568.0 1806.5 C 628.0 1806.5, 628.0 1806.5, 688.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1806.5 C 948.0 1806.5, 948.0 1594.0, 1008.0 1594.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1806.5 C 948.0 1806.5, 948.0 1679.0, 1008.0 1679.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 1679.0 C 1268.0 1679.0, 1268.0 1806.5, 1328.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 568.0 1806.5 C 628.0 1806.5, 628.0 1891.5, 688.0 1891.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1891.5 C 948.0 1891.5, 948.0 2104.0, 1008.0 2104.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1891.5 C 948.0 1891.5, 948.0 2189.0, 1008.0 2189.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 2189.0 C 1268.0 2189.0, 1268.0 2146.5, 1328.0 2146.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1806.5 C 948.0 1806.5, 948.0 1764.0, 1008.0 1764.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 1764.0 C 1268.0 1764.0, 1268.0 1891.5, 1328.0 1891.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1806.5 C 948.0 1806.5, 948.0 1849.0, 1008.0 1849.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1806.5 C 948.0 1806.5, 948.0 1934.0, 1008.0 1934.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 1934.0 C 1268.0 1934.0, 1268.0 1976.5, 1328.0 1976.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 1934.0 C 1268.0 1934.0, 1268.0 2061.5, 1328.0 2061.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1806.5 C 948.0 1806.5, 948.0 2019.0, 1008.0 2019.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 568.0 1806.5 C 628.0 1806.5, 628.0 1976.5, 688.0 1976.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 568.0 1806.5 C 628.0 1806.5, 628.0 2061.5, 688.0 2061.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 2061.5 C 948.0 2061.5, 948.0 2274.0, 1008.0 2274.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 149.0 C 308.0 149.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 289.0 C 468.0 289.0, 468.0 1636.5, 688.0 1636.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 289.0 C 628.0 289.0, 628.0 1424.0, 1008.0 1424.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 289.0 C 788.0 289.0, 788.0 1551.5, 1328.0 1551.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 419.0 C 468.0 419.0, 468.0 1636.5, 688.0 1636.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 419.0 C 628.0 419.0, 628.0 1424.0, 1008.0 1424.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 419.0 C 788.0 419.0, 788.0 1551.5, 1328.0 1551.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 539.0 C 468.0 539.0, 468.0 1636.5, 688.0 1636.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 539.0 C 628.0 539.0, 628.0 1424.0, 1008.0 1424.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 539.0 C 788.0 539.0, 788.0 1636.5, 1328.0 1636.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 659.0 C 468.0 659.0, 468.0 1636.5, 688.0 1636.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 659.0 C 628.0 659.0, 628.0 1509.0, 1008.0 1509.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 659.0 C 788.0 659.0, 788.0 1721.5, 1328.0 1721.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 789.0 C 468.0 789.0, 468.0 1636.5, 688.0 1636.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 789.0 C 628.0 789.0, 628.0 1509.0, 1008.0 1509.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 789.0 C 788.0 789.0, 788.0 1721.5, 1328.0 1721.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 929.0 C 308.0 929.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 929.0 C 468.0 929.0, 468.0 1721.5, 688.0 1721.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1059.0 C 308.0 1059.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1059.0 C 468.0 1059.0, 468.0 1721.5, 688.0 1721.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1161.5 C 308.0 1161.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1161.5 C 468.0 1161.5, 468.0 1721.5, 688.0 1721.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1264.0 C 308.0 1264.0, 308.0 1899.0, 368.0 1899.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1384.0 C 308.0 1384.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1384.0 C 468.0 1384.0, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1384.0 C 628.0 1384.0, 628.0 1594.0, 1008.0 1594.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1504.0 C 308.0 1504.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1504.0 C 468.0 1504.0, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1504.0 C 628.0 1504.0, 628.0 1594.0, 1008.0 1594.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1504.0 C 628.0 1504.0, 628.0 1679.0, 1008.0 1679.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1624.0 C 308.0 1624.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1624.0 C 468.0 1624.0, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1624.0 C 628.0 1624.0, 628.0 1679.0, 1008.0 1679.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1736.5 C 308.0 1736.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1736.5 C 468.0 1736.5, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1736.5 C 628.0 1736.5, 628.0 1679.0, 1008.0 1679.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1736.5 C 788.0 1736.5, 788.0 1806.5, 1328.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1841.5 C 308.0 1841.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1841.5 C 468.0 1841.5, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1841.5 C 628.0 1841.5, 628.0 1679.0, 1008.0 1679.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1841.5 C 788.0 1841.5, 788.0 1806.5, 1328.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1954.0 C 308.0 1954.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1954.0 C 468.0 1954.0, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1954.0 C 628.0 1954.0, 628.0 1679.0, 1008.0 1679.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2066.5 C 308.0 2066.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2066.5 C 468.0 2066.5, 468.0 1891.5, 688.0 1891.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2066.5 C 628.0 2066.5, 628.0 2104.0, 1008.0 2104.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2161.5 C 308.0 2161.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2161.5 C 468.0 2161.5, 468.0 1891.5, 688.0 1891.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2161.5 C 628.0 2161.5, 628.0 2189.0, 1008.0 2189.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2246.5 C 308.0 2246.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2246.5 C 468.0 2246.5, 468.0 1891.5, 688.0 1891.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2246.5 C 628.0 2246.5, 628.0 2189.0, 1008.0 2189.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2246.5 C 788.0 2246.5, 788.0 2146.5, 1328.0 2146.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2341.5 C 308.0 2341.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2341.5 C 468.0 2341.5, 468.0 1891.5, 688.0 1891.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2341.5 C 628.0 2341.5, 628.0 2189.0, 1008.0 2189.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2341.5 C 788.0 2341.5, 788.0 2146.5, 1328.0 2146.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2454.0 C 628.0 2454.0, 628.0 1764.0, 1008.0 1764.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2574.0 C 788.0 2574.0, 788.0 1891.5, 1328.0 1891.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2694.0 C 628.0 2694.0, 628.0 1849.0, 1008.0 1849.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2796.5 C 628.0 2796.5, 628.0 1934.0, 1008.0 1934.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2899.0 C 788.0 2899.0, 788.0 1976.5, 1328.0 1976.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 3011.5 C 788.0 3011.5, 788.0 2061.5, 1328.0 2061.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 3124.0 C 308.0 3124.0, 308.0 1899.0, 368.0 1899.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 3236.5 C 628.0 3236.5, 628.0 2019.0, 1008.0 2019.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 3349.0 C 468.0 3349.0, 468.0 1976.5, 688.0 1976.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 3461.5 C 468.0 3461.5, 468.0 2061.5, 688.0 2061.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 3566.5 C 628.0 3566.5, 628.0 2274.0, 1008.0 2274.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <g class="node" data-id="n1"><rect x="368.0" y="1769.5" width="200.0" height="74.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="382.0" y="1795.5" font-size="15.0" font-weight="600" fill="#166534">改编小红帽图文</text>
+      <text x="382.0" y="1812.5" font-size="11.5" fill="#667085">#1 #7 #8 #9 #11 #12 #13 #14</text>
+      <text x="382.0" y="1827.5" font-size="11.5" fill="#667085"> #15 #16 #17 #18 #19 #20</text>
+      </g>
+      <g class="node" data-id="n2"><rect x="688.0" y="1607.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="702.0" y="1633.0" font-size="15.0" font-weight="600" fill="#166534">定角色</text>
+      <text x="702.0" y="1650.0" font-size="11.5" fill="#667085">#2 #3 #4 #5 #6</text>
+      </g>
+      <g class="node" data-id="n3"><rect x="1008.0" y="1394.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="1420.5" font-size="15.0" font-weight="600" fill="#166534">小红帽形象</text>
+      <text x="1022.0" y="1437.5" font-size="11.5" fill="#667085">#2 #3 #4</text>
+      </g>
+      <g class="node" data-id="n4"><rect x="1328.0" y="1522.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="1548.0" font-size="15.0" font-weight="600" fill="#166534">斗篷颜色</text>
+      <text x="1342.0" y="1565.0" font-size="11.5" fill="#667085">#2 #3</text>
+      </g>
+      <g class="node" data-id="n5"><rect x="1328.0" y="1607.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="1633.0" font-size="15.0" font-weight="600" fill="#166534">篮子内容</text>
+      <text x="1342.0" y="1650.0" font-size="11.5" fill="#667085">#4</text>
+      </g>
+      <g class="node" data-id="n6"><rect x="1008.0" y="1479.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="1505.5" font-size="15.0" font-weight="600" fill="#166534">狼的角色</text>
+      <text x="1022.0" y="1522.5" font-size="11.5" fill="#667085">#5 #6</text>
+      </g>
+      <g class="node" data-id="n7"><rect x="1328.0" y="1692.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="1718.0" font-size="15.0" font-weight="600" fill="#166534">狼的动机</text>
+      <text x="1342.0" y="1735.0" font-size="11.5" fill="#667085">#5 #6</text>
+      </g>
+      <g class="node" data-id="n8"><rect x="688.0" y="1692.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="702.0" y="1718.0" font-size="15.0" font-weight="600" fill="#166534">结局设计</text>
+      <text x="702.0" y="1735.0" font-size="11.5" fill="#667085">#7 #8 #9</text>
+      </g>
+      <g class="node" data-id="n9"><rect x="368.0" y="1869.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="382.0" y="1895.5" font-size="15.0" font-weight="600" fill="#166534">女儿发烧（临时状况）</text>
+      <text x="382.0" y="1912.5" font-size="11.5" fill="#667085">#10 #27</text>
+      </g>
+      <g class="node" data-id="n10"><rect x="688.0" y="1777.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="702.0" y="1803.0" font-size="15.0" font-weight="600" fill="#166534">插画</text>
+      <text x="702.0" y="1820.0" font-size="11.5" fill="#667085">#11 #12 #13 #14 #15 #16</text>
+      </g>
+      <g class="node" data-id="n11"><rect x="1008.0" y="1564.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="1590.5" font-size="15.0" font-weight="600" fill="#166534">画风选择</text>
+      <text x="1022.0" y="1607.5" font-size="11.5" fill="#667085">#11 #12</text>
+      </g>
+      <g class="node" data-id="n12"><rect x="1008.0" y="1649.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="1675.5" font-size="15.0" font-weight="600" fill="#166534">第一页内容</text>
+      <text x="1022.0" y="1692.5" font-size="11.5" fill="#667085">#12 #13 #14 #15 #16</text>
+      </g>
+      <g class="node" data-id="n13"><rect x="1328.0" y="1777.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="1803.0" font-size="15.0" font-weight="600" fill="#166534">妈妈台词</text>
+      <text x="1342.0" y="1820.0" font-size="11.5" fill="#667085">#14 #15</text>
+      </g>
+      <g class="node" data-id="n14"><rect x="688.0" y="1862.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="702.0" y="1888.0" font-size="15.0" font-weight="600" fill="#166534">朗读配音</text>
+      <text x="702.0" y="1905.0" font-size="11.5" fill="#667085">#17 #18 #19 #20</text>
+      </g>
+      <g class="node" data-id="n15"><rect x="1008.0" y="2074.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="2100.5" font-size="15.0" font-weight="600" fill="#166534">配音人选</text>
+      <text x="1022.0" y="2117.5" font-size="11.5" fill="#667085">#17</text>
+      </g>
+      <g class="node" data-id="n16"><rect x="1008.0" y="2159.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="2185.5" font-size="15.0" font-weight="600" fill="#166534">试听</text>
+      <text x="1022.0" y="2202.5" font-size="11.5" fill="#667085">#18 #19 #20</text>
+      </g>
+      <g class="node" data-id="n17"><rect x="1328.0" y="2117.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="2143.0" font-size="15.0" font-weight="600" fill="#166534">语速调整</text>
+      <text x="1342.0" y="2160.0" font-size="11.5" fill="#667085">#19 #20</text>
+      </g>
+      <g class="node" data-id="t21"><rect x="1008.0" y="1734.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="1760.5" font-size="15.0" font-weight="600" fill="#166534">外婆家场景亮度</text>
+      <text x="1022.0" y="1777.5" font-size="11.5" fill="#667085">#21</text>
+      </g>
+      <g class="node" data-id="t22"><rect x="1328.0" y="1862.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="1888.0" font-size="15.0" font-weight="600" fill="#166534">窗外深森林</text>
+      <text x="1342.0" y="1905.0" font-size="11.5" fill="#667085">#22</text>
+      </g>
+      <g class="node" data-id="t23"><rect x="1008.0" y="1819.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="1845.5" font-size="15.0" font-weight="600" fill="#166534">封面定稿时间</text>
+      <text x="1022.0" y="1862.5" font-size="11.5" fill="#667085">#23</text>
+      </g>
+      <g class="node" data-id="t24"><rect x="1008.0" y="1904.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="1930.5" font-size="15.0" font-weight="600" fill="#166534">书名确定</text>
+      <text x="1022.0" y="1947.5" font-size="11.5" fill="#667085">#24</text>
+      </g>
+      <g class="node" data-id="t25"><rect x="1328.0" y="1947.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="1973.0" font-size="15.0" font-weight="600" fill="#166534">书名吓人顾虑</text>
+      <text x="1342.0" y="1990.0" font-size="11.5" fill="#667085">#25</text>
+      </g>
+      <g class="node" data-id="t26"><rect x="1328.0" y="2032.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="2058.0" font-size="15.0" font-weight="600" fill="#166534">书名改为看外婆</text>
+      <text x="1342.0" y="2075.0" font-size="11.5" fill="#667085">#26</text>
+      </g>
+      <g class="node" data-id="t28"><rect x="1008.0" y="1989.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="2015.5" font-size="15.0" font-weight="600" fill="#166534">封面画背影</text>
+      <text x="1022.0" y="2032.5" font-size="11.5" fill="#667085">#28</text>
+      </g>
+      <g class="node" data-id="t29"><rect x="688.0" y="1947.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="702.0" y="1973.0" font-size="15.0" font-weight="600" fill="#166534">未定项盘点</text>
+      <text x="702.0" y="1990.0" font-size="11.5" fill="#667085">#29</text>
+      </g>
+      <g class="node" data-id="t30"><rect x="688.0" y="2032.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="702.0" y="2058.0" font-size="15.0" font-weight="600" fill="#166534">今日已定清单</text>
+      <text x="702.0" y="2075.0" font-size="11.5" fill="#667085">#30</text>
+      </g>
+      <g class="node" data-id="t31"><rect x="1008.0" y="2244.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="2270.5" font-size="15.0" font-weight="600" fill="#166534">标注未定项</text>
+      <text x="1022.0" y="2287.5" font-size="11.5" fill="#667085">#31</text>
+      </g>
+      <g class="node" data-id="turn1"><rect x="48.0" y="92.0" width="200.0" height="114.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="118.0" font-size="15.0" font-weight="600" fill="#166534">#1 我想把《小红帽》改</text>
+      <text x="62.0" y="138.0" font-size="15.0" font-weight="600" fill="#166534">成一本给五岁孩子看的绘</text>
+      <text x="62.0" y="158.0" font-size="15.0" font-weight="600" fill="#166534">本，</text>
+      <text x="62.0" y="175.0" font-size="11.5" fill="#667085">我想把《小红帽》改成一本给五</text>
+      <text x="62.0" y="190.0" font-size="11.5" fill="#667085">岁孩子看的图文，先一起把角色</text>
+      </g>
+      <g class="node" data-id="turn2"><rect x="48.0" y="232.0" width="200.0" height="114.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="258.0" font-size="15.0" font-weight="600" fill="#166534">#2 小红帽的斗篷用什么</text>
+      <text x="62.0" y="278.0" font-size="15.0" font-weight="600" fill="#166534">颜色好，正红会不会太扎</text>
+      <text x="62.0" y="298.0" font-size="15.0" font-weight="600" fill="#166534">眼</text>
+      <text x="62.0" y="315.0" font-size="11.5" fill="#667085">小红帽的斗篷用什么颜色好，正</text>
+      <text x="62.0" y="330.0" font-size="11.5" fill="#667085">红会不会太扎眼</text>
+      </g>
+      <g class="node" data-id="turn3"><rect x="48.0" y="372.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="398.0" font-size="15.0" font-weight="600" fill="#166534">#3 那就深红。她篮子里</text>
+      <text x="62.0" y="418.0" font-size="15.0" font-weight="600" fill="#166534">装点什么合适</text>
+      <text x="62.0" y="435.0" font-size="11.5" fill="#667085">那就深红。她篮子里装点什么合</text>
+      <text x="62.0" y="450.0" font-size="11.5" fill="#667085">适</text>
+      </g>
+      <g class="node" data-id="turn4"><rect x="48.0" y="492.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="518.0" font-size="15.0" font-weight="600" fill="#166534">#4 果酱和面包行。接下</text>
+      <text x="62.0" y="538.0" font-size="15.0" font-weight="600" fill="#166534">来想想狼这个角色</text>
+      <text x="62.0" y="555.0" font-size="11.5" fill="#667085">果酱和面包行。接下来想想狼这</text>
+      <text x="62.0" y="570.0" font-size="11.5" fill="#667085">个角色</text>
+      </g>
+      <g class="node" data-id="turn5"><rect x="48.0" y="612.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="638.0" font-size="15.0" font-weight="600" fill="#166534">#5 狼的动机好像不太行</text>
+      <text x="62.0" y="658.0" font-size="15.0" font-weight="600" fill="#166534">，它现在就是单纯想吃人</text>
+      <text x="62.0" y="675.0" font-size="11.5" fill="#667085">狼的动机好像不太行，它现在就</text>
+      <text x="62.0" y="690.0" font-size="11.5" fill="#667085">是单纯想吃人</text>
+      </g>
+      <g class="node" data-id="turn6"><rect x="48.0" y="732.0" width="200.0" height="114.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="758.0" font-size="15.0" font-weight="600" fill="#166534">#6 对，改成它是冬天被</text>
+      <text x="62.0" y="778.0" font-size="15.0" font-weight="600" fill="#166534">森林赶出来、饿了好几天</text>
+      <text x="62.0" y="798.0" font-size="15.0" font-weight="600" fill="#166534">的狼</text>
+      <text x="62.0" y="815.0" font-size="11.5" fill="#667085">对，改成它是冬天被森林赶出来</text>
+      <text x="62.0" y="830.0" font-size="11.5" fill="#667085">、饿了好几天的狼</text>
+      </g>
+      <g class="node" data-id="turn7"><rect x="48.0" y="872.0" width="200.0" height="114.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="898.0" font-size="15.0" font-weight="600" fill="#166534">#7 这样好多了。那结局</text>
+      <text x="62.0" y="918.0" font-size="15.0" font-weight="600" fill="#166534">呢，猎人把狼肚子剖开太</text>
+      <text x="62.0" y="938.0" font-size="15.0" font-weight="600" fill="#166534">血腥</text>
+      <text x="62.0" y="955.0" font-size="11.5" fill="#667085">这样好多了。那结局呢，猎人把</text>
+      <text x="62.0" y="970.0" font-size="11.5" fill="#667085">狼肚子剖开太血腥了</text>
+      </g>
+      <g class="node" data-id="turn8"><rect x="48.0" y="1012.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1038.0" font-size="15.0" font-weight="600" fill="#166534">#8 结局改成猎人把狼吓</text>
+      <text x="62.0" y="1058.0" font-size="15.0" font-weight="600" fill="#166534">跑，外婆和小红帽都没事</text>
+      <text x="62.0" y="1075.0" font-size="11.5" fill="#667085">结局改成猎人把狼吓跑，外婆和</text>
+      <text x="62.0" y="1090.0" font-size="11.5" fill="#667085">小红帽都没事</text>
+      </g>
+      <g class="node" data-id="turn9"><rect x="48.0" y="1132.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1158.0" font-size="15.0" font-weight="600" fill="#166534">#9 好，结局这样就行</text>
+      <text x="62.0" y="1175.0" font-size="11.5" fill="#667085">好，结局这样就行</text>
+      </g>
+      <g class="node" data-id="turn10"><rect x="48.0" y="1217.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1243.0" font-size="15.0" font-weight="600" fill="#166534">#10 对了昨天我女儿发烧</text>
+      <text x="62.0" y="1263.0" font-size="15.0" font-weight="600" fill="#166534">，折腾了一晚上</text>
+      <text x="62.0" y="1280.0" font-size="11.5" fill="#667085">对了昨天我女儿发烧，折腾了一</text>
+      <text x="62.0" y="1295.0" font-size="11.5" fill="#667085">晚上</text>
+      </g>
+      <g class="node" data-id="turn11"><rect x="48.0" y="1337.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1363.0" font-size="15.0" font-weight="600" fill="#166534">#11 回到插画，画风想要</text>
+      <text x="62.0" y="1383.0" font-size="15.0" font-weight="600" fill="#166534">水彩还是蜡笔</text>
+      <text x="62.0" y="1400.0" font-size="11.5" fill="#667085">回到插画，画风想要水彩还是蜡</text>
+      <text x="62.0" y="1415.0" font-size="11.5" fill="#667085">笔</text>
+      </g>
+      <g class="node" data-id="turn12"><rect x="48.0" y="1457.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1483.0" font-size="15.0" font-weight="600" fill="#166534">#12 蜡笔吧，孩子喜欢。</text>
+      <text x="62.0" y="1503.0" font-size="15.0" font-weight="600" fill="#166534">那第一页画什么</text>
+      <text x="62.0" y="1520.0" font-size="11.5" fill="#667085">蜡笔吧，孩子喜欢。那第一页画</text>
+      <text x="62.0" y="1535.0" font-size="11.5" fill="#667085">什么</text>
+      </g>
+      <g class="node" data-id="turn13"><rect x="48.0" y="1577.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1603.0" font-size="15.0" font-weight="600" fill="#166534">#13 第一页画小红帽出门</text>
+      <text x="62.0" y="1623.0" font-size="15.0" font-weight="600" fill="#166534">，妈妈站在门口挥手</text>
+      <text x="62.0" y="1640.0" font-size="11.5" fill="#667085">第一页画小红帽出门，妈妈站在</text>
+      <text x="62.0" y="1655.0" font-size="11.5" fill="#667085">门口挥手</text>
+      </g>
+      <g class="node" data-id="turn14"><rect x="48.0" y="1697.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1723.0" font-size="15.0" font-weight="600" fill="#166534">#14 妈妈要不要有一句台</text>
+      <text x="62.0" y="1743.0" font-size="15.0" font-weight="600" fill="#166534">词</text>
+      <text x="62.0" y="1760.0" font-size="11.5" fill="#667085">妈妈要不要有一句台词</text>
+      </g>
+      <g class="node" data-id="turn15"><rect x="48.0" y="1802.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1828.0" font-size="15.0" font-weight="600" fill="#166534">#15 台词就一句，别走小</text>
+      <text x="62.0" y="1848.0" font-size="15.0" font-weight="600" fill="#166534">路</text>
+      <text x="62.0" y="1865.0" font-size="11.5" fill="#667085">台词就一句，别走小路</text>
+      </g>
+      <g class="node" data-id="turn16"><rect x="48.0" y="1907.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1933.0" font-size="15.0" font-weight="600" fill="#166534">#16 这页可以了。朗读配</text>
+      <text x="62.0" y="1953.0" font-size="15.0" font-weight="600" fill="#166534">音你想找谁读</text>
+      <text x="62.0" y="1970.0" font-size="11.5" fill="#667085">这页可以了。朗读配音你想找谁</text>
+      <text x="62.0" y="1985.0" font-size="11.5" fill="#667085">读</text>
+      </g>
+      <g class="node" data-id="turn17"><rect x="48.0" y="2027.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2053.0" font-size="15.0" font-weight="600" fill="#166534">#17 找个女声，语速慢一</text>
+      <text x="62.0" y="2073.0" font-size="15.0" font-weight="600" fill="#166534">点</text>
+      <text x="62.0" y="2090.0" font-size="11.5" fill="#667085">找个女声，语速慢一点</text>
+      </g>
+      <g class="node" data-id="turn18"><rect x="48.0" y="2132.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2158.0" font-size="15.0" font-weight="600" fill="#166534">#18 那先录一段试听一下</text>
+      <text x="62.0" y="2175.0" font-size="11.5" fill="#667085">那先录一段试听一下</text>
+      </g>
+      <g class="node" data-id="turn19"><rect x="48.0" y="2217.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2243.0" font-size="15.0" font-weight="600" fill="#166534">#19 试听听着还是有点快</text>
+      <text x="62.0" y="2260.0" font-size="11.5" fill="#667085">试听听着还是有点快</text>
+      </g>
+      <g class="node" data-id="turn20"><rect x="48.0" y="2302.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2328.0" font-size="15.0" font-weight="600" fill="#166534">#20 那就再慢一点，重录</text>
+      <text x="62.0" y="2348.0" font-size="15.0" font-weight="600" fill="#166534">一遍</text>
+      <text x="62.0" y="2365.0" font-size="11.5" fill="#667085">那就再慢一点，重录一遍</text>
+      </g>
+      <g class="node" data-id="turn21"><rect x="48.0" y="2407.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2433.0" font-size="15.0" font-weight="600" fill="#166534">#21 好。外婆家的场景要</text>
+      <text x="62.0" y="2453.0" font-size="15.0" font-weight="600" fill="#166534">不要画得亮一些</text>
+      <text x="62.0" y="2470.0" font-size="11.5" fill="#667085">好。外婆家的场景要不要画得亮</text>
+      <text x="62.0" y="2485.0" font-size="11.5" fill="#667085">一些</text>
+      </g>
+      <g class="node" data-id="turn22"><rect x="48.0" y="2527.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2553.0" font-size="15.0" font-weight="600" fill="#166534">#22 亮一点，但窗子外面</text>
+      <text x="62.0" y="2573.0" font-size="15.0" font-weight="600" fill="#166534">要看见深森林</text>
+      <text x="62.0" y="2590.0" font-size="11.5" fill="#667085">亮一点，但窗子外面要看见深森</text>
+      <text x="62.0" y="2605.0" font-size="11.5" fill="#667085">林</text>
+      </g>
+      <g class="node" data-id="turn23"><rect x="48.0" y="2647.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2673.0" font-size="15.0" font-weight="600" fill="#166534">#23 这个可以。顺便问下</text>
+      <text x="62.0" y="2693.0" font-size="15.0" font-weight="600" fill="#166534">封面什么时候定</text>
+      <text x="62.0" y="2710.0" font-size="11.5" fill="#667085">这个可以。顺便问下封面什么时</text>
+      <text x="62.0" y="2725.0" font-size="11.5" fill="#667085">候定</text>
+      </g>
+      <g class="node" data-id="turn24"><rect x="48.0" y="2767.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2793.0" font-size="15.0" font-weight="600" fill="#166534">#24 先把书名定了吧</text>
+      <text x="62.0" y="2810.0" font-size="11.5" fill="#667085">先把书名定了吧</text>
+      </g>
+      <g class="node" data-id="turn25"><rect x="48.0" y="2852.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2878.0" font-size="15.0" font-weight="600" fill="#166534">#25 书名《小红帽和饿狼</text>
+      <text x="62.0" y="2898.0" font-size="15.0" font-weight="600" fill="#166534">》会不会太吓人</text>
+      <text x="62.0" y="2915.0" font-size="11.5" fill="#667085">书名《小红帽和饿狼》会不会太</text>
+      <text x="62.0" y="2930.0" font-size="11.5" fill="#667085">吓人</text>
+      </g>
+      <g class="node" data-id="turn26"><rect x="48.0" y="2972.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2998.0" font-size="15.0" font-weight="600" fill="#166534">#26 那就《小红帽去看外</text>
+      <text x="62.0" y="3018.0" font-size="15.0" font-weight="600" fill="#166534">婆》</text>
+      <text x="62.0" y="3035.0" font-size="11.5" fill="#667085">那就《小红帽去看外婆》</text>
+      </g>
+      <g class="node" data-id="turn27"><rect x="48.0" y="3077.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="3103.0" font-size="15.0" font-weight="600" fill="#166534">#27 对了明天幼儿园要交</text>
+      <text x="62.0" y="3123.0" font-size="15.0" font-weight="600" fill="#166534">手工作业，这个先不聊</text>
+      <text x="62.0" y="3140.0" font-size="11.5" fill="#667085">对了明天幼儿园要交手工作业，</text>
+      <text x="62.0" y="3155.0" font-size="11.5" fill="#667085">这个先不聊</text>
+      </g>
+      <g class="node" data-id="turn28"><rect x="48.0" y="3197.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="3223.0" font-size="15.0" font-weight="600" fill="#166534">#28 回到封面，画成小红</text>
+      <text x="62.0" y="3243.0" font-size="15.0" font-weight="600" fill="#166534">帽的背影吧</text>
+      <text x="62.0" y="3260.0" font-size="11.5" fill="#667085">回到封面，画成小红帽的背影吧</text>
+      </g>
+      <g class="node" data-id="turn29"><rect x="48.0" y="3302.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="3328.0" font-size="15.0" font-weight="600" fill="#166534">#29 封面先这样。现在还</text>
+      <text x="62.0" y="3348.0" font-size="15.0" font-weight="600" fill="#166534">有哪些没定下来的</text>
+      <text x="62.0" y="3365.0" font-size="11.5" fill="#667085">封面先这样。现在还有哪些没定</text>
+      <text x="62.0" y="3380.0" font-size="11.5" fill="#667085">下来的</text>
+      </g>
+      <g class="node" data-id="turn30"><rect x="48.0" y="3422.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="3448.0" font-size="15.0" font-weight="600" fill="#166534">#30 那把今天定的都列一</text>
+      <text x="62.0" y="3468.0" font-size="15.0" font-weight="600" fill="#166534">遍</text>
+      <text x="62.0" y="3485.0" font-size="11.5" fill="#667085">那把今天定的都列一遍</text>
+      </g>
+      <g class="node" data-id="turn31"><rect x="48.0" y="3527.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="3553.0" font-size="15.0" font-weight="600" fill="#166534">#31 清单里把还没定的也</text>
+      <text x="62.0" y="3573.0" font-size="15.0" font-weight="600" fill="#166534">标出来</text>
+      <text x="62.0" y="3590.0" font-size="11.5" fill="#667085">清单里把还没定的也标出来</text>
+      </g>
+      <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#98a2b3"/></marker><marker id="arrowOpen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626"/></marker><marker id="arrowInferred" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/></marker></defs>
+      </svg>
+    </div>
+  </section>
+  <section>
+    <h2>闭包后（每个落点补上全部祖先）<span class="meta">tools/probes/.out/graph/fairytale-run3-closure.json · 1576×3654</span></h2>
+    <p>同一条树，回合多出到各级祖先的边（虚线）。</p>
+    <div class="canvas">
+      <svg xmlns="http://www.w3.org/2000/svg" width="1576" height="3654" viewBox="0 0 1576 3654" font-family="&#x27;Noto Sans CJK SC&#x27;,&#x27;Source Han Sans SC&#x27;,&#x27;PingFang SC&#x27;,&#x27;Hiragino Sans GB&#x27;,&#x27;Microsoft YaHei&#x27;,&#x27;WenQuanYi Zen Hei&#x27;,-apple-system,BlinkMacSystemFont,&#x27;Segoe UI&#x27;,sans-serif" style="background:#ffffff">
+      <path d="M 568.0 1806.5 C 628.0 1806.5, 628.0 1629.0, 688.0 1629.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1629.0 C 948.0 1629.0, 948.0 1424.0, 1008.0 1424.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 1424.0 C 1268.0 1424.0, 1268.0 1551.5, 1328.0 1551.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 1424.0 C 1268.0 1424.0, 1268.0 1636.5, 1328.0 1636.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1629.0 C 948.0 1629.0, 948.0 1509.0, 1008.0 1509.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 1509.0 C 1268.0 1509.0, 1268.0 1721.5, 1328.0 1721.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 568.0 1806.5 C 628.0 1806.5, 628.0 1714.0, 688.0 1714.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 568.0 1806.5 C 628.0 1806.5, 628.0 1806.5, 688.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1806.5 C 948.0 1806.5, 948.0 1594.0, 1008.0 1594.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1806.5 C 948.0 1806.5, 948.0 1679.0, 1008.0 1679.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 1679.0 C 1268.0 1679.0, 1268.0 1806.5, 1328.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 568.0 1806.5 C 628.0 1806.5, 628.0 1899.0, 688.0 1899.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1899.0 C 948.0 1899.0, 948.0 2104.0, 1008.0 2104.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1899.0 C 948.0 1899.0, 948.0 2189.0, 1008.0 2189.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 2189.0 C 1268.0 2189.0, 1268.0 2146.5, 1328.0 2146.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1806.5 C 948.0 1806.5, 948.0 1764.0, 1008.0 1764.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 1764.0 C 1268.0 1764.0, 1268.0 1891.5, 1328.0 1891.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1806.5 C 948.0 1806.5, 948.0 1849.0, 1008.0 1849.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1806.5 C 948.0 1806.5, 948.0 1934.0, 1008.0 1934.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 1934.0 C 1268.0 1934.0, 1268.0 1976.5, 1328.0 1976.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 1208.0 1934.0 C 1268.0 1934.0, 1268.0 2061.5, 1328.0 2061.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 1806.5 C 948.0 1806.5, 948.0 2019.0, 1008.0 2019.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 568.0 1806.5 C 628.0 1806.5, 628.0 1984.0, 688.0 1984.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 568.0 1806.5 C 628.0 1806.5, 628.0 2069.0, 688.0 2069.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 888.0 2069.0 C 948.0 2069.0, 948.0 2274.0, 1008.0 2274.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 149.0 C 308.0 149.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 289.0 C 468.0 289.0, 468.0 1629.0, 688.0 1629.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 289.0 C 308.0 289.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 289.0 C 628.0 289.0, 628.0 1424.0, 1008.0 1424.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 289.0 C 788.0 289.0, 788.0 1551.5, 1328.0 1551.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 419.0 C 468.0 419.0, 468.0 1629.0, 688.0 1629.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 419.0 C 308.0 419.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 419.0 C 628.0 419.0, 628.0 1424.0, 1008.0 1424.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 419.0 C 788.0 419.0, 788.0 1551.5, 1328.0 1551.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 539.0 C 468.0 539.0, 468.0 1629.0, 688.0 1629.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 539.0 C 308.0 539.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 539.0 C 628.0 539.0, 628.0 1424.0, 1008.0 1424.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 539.0 C 788.0 539.0, 788.0 1636.5, 1328.0 1636.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 659.0 C 468.0 659.0, 468.0 1629.0, 688.0 1629.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 659.0 C 308.0 659.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 659.0 C 628.0 659.0, 628.0 1509.0, 1008.0 1509.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 659.0 C 788.0 659.0, 788.0 1721.5, 1328.0 1721.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 789.0 C 468.0 789.0, 468.0 1629.0, 688.0 1629.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 789.0 C 308.0 789.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 789.0 C 628.0 789.0, 628.0 1509.0, 1008.0 1509.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 789.0 C 788.0 789.0, 788.0 1721.5, 1328.0 1721.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 929.0 C 308.0 929.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 929.0 C 468.0 929.0, 468.0 1714.0, 688.0 1714.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1059.0 C 308.0 1059.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1059.0 C 468.0 1059.0, 468.0 1714.0, 688.0 1714.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1161.5 C 308.0 1161.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1161.5 C 468.0 1161.5, 468.0 1714.0, 688.0 1714.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1264.0 C 308.0 1264.0, 308.0 1899.0, 368.0 1899.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1384.0 C 308.0 1384.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1384.0 C 468.0 1384.0, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1384.0 C 628.0 1384.0, 628.0 1594.0, 1008.0 1594.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1504.0 C 308.0 1504.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1504.0 C 468.0 1504.0, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1504.0 C 628.0 1504.0, 628.0 1594.0, 1008.0 1594.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1504.0 C 628.0 1504.0, 628.0 1679.0, 1008.0 1679.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1624.0 C 308.0 1624.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1624.0 C 468.0 1624.0, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1624.0 C 628.0 1624.0, 628.0 1679.0, 1008.0 1679.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1736.5 C 308.0 1736.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1736.5 C 468.0 1736.5, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1736.5 C 628.0 1736.5, 628.0 1679.0, 1008.0 1679.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1736.5 C 788.0 1736.5, 788.0 1806.5, 1328.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1841.5 C 308.0 1841.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1841.5 C 468.0 1841.5, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1841.5 C 628.0 1841.5, 628.0 1679.0, 1008.0 1679.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1841.5 C 788.0 1841.5, 788.0 1806.5, 1328.0 1806.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 1954.0 C 308.0 1954.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1954.0 C 468.0 1954.0, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 1954.0 C 628.0 1954.0, 628.0 1679.0, 1008.0 1679.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2066.5 C 308.0 2066.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2066.5 C 468.0 2066.5, 468.0 1899.0, 688.0 1899.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2066.5 C 628.0 2066.5, 628.0 2104.0, 1008.0 2104.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2161.5 C 308.0 2161.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2161.5 C 468.0 2161.5, 468.0 1899.0, 688.0 1899.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2161.5 C 628.0 2161.5, 628.0 2189.0, 1008.0 2189.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2246.5 C 308.0 2246.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2246.5 C 468.0 2246.5, 468.0 1899.0, 688.0 1899.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2246.5 C 628.0 2246.5, 628.0 2189.0, 1008.0 2189.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2246.5 C 788.0 2246.5, 788.0 2146.5, 1328.0 2146.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2341.5 C 308.0 2341.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2341.5 C 468.0 2341.5, 468.0 1899.0, 688.0 1899.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2341.5 C 628.0 2341.5, 628.0 2189.0, 1008.0 2189.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2341.5 C 788.0 2341.5, 788.0 2146.5, 1328.0 2146.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2454.0 C 628.0 2454.0, 628.0 1764.0, 1008.0 1764.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2454.0 C 468.0 2454.0, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2454.0 C 308.0 2454.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2574.0 C 788.0 2574.0, 788.0 1891.5, 1328.0 1891.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2574.0 C 628.0 2574.0, 628.0 1764.0, 1008.0 1764.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2574.0 C 468.0 2574.0, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2574.0 C 308.0 2574.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2694.0 C 628.0 2694.0, 628.0 1849.0, 1008.0 1849.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2694.0 C 468.0 2694.0, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2694.0 C 308.0 2694.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2796.5 C 628.0 2796.5, 628.0 1934.0, 1008.0 1934.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2796.5 C 468.0 2796.5, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2796.5 C 308.0 2796.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2899.0 C 788.0 2899.0, 788.0 1976.5, 1328.0 1976.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 2899.0 C 628.0 2899.0, 628.0 1934.0, 1008.0 1934.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2899.0 C 468.0 2899.0, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 2899.0 C 308.0 2899.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 3011.5 C 788.0 3011.5, 788.0 2061.5, 1328.0 2061.5" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 3011.5 C 628.0 3011.5, 628.0 1934.0, 1008.0 1934.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 3011.5 C 468.0 3011.5, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 3011.5 C 308.0 3011.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 3124.0 C 308.0 3124.0, 308.0 1899.0, 368.0 1899.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 3236.5 C 628.0 3236.5, 628.0 2019.0, 1008.0 2019.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 3236.5 C 468.0 3236.5, 468.0 1806.5, 688.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 3236.5 C 308.0 3236.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 3349.0 C 468.0 3349.0, 468.0 1984.0, 688.0 1984.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 3349.0 C 308.0 3349.0, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 3461.5 C 468.0 3461.5, 468.0 2069.0, 688.0 2069.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 3461.5 C 308.0 3461.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 3566.5 C 628.0 3566.5, 628.0 2274.0, 1008.0 2274.0" fill="none" stroke="#98a2b3" stroke-width="1.3" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+      <path d="M 248.0 3566.5 C 468.0 3566.5, 468.0 2069.0, 688.0 2069.0" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <path d="M 248.0 3566.5 C 308.0 3566.5, 308.0 1806.5, 368.0 1806.5" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-opacity="0.85" stroke-dasharray="6 5" marker-end="url(#arrowInferred)"/>
+      <g class="node" data-id="n1"><rect x="368.0" y="1769.5" width="200.0" height="74.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="382.0" y="1795.5" font-size="15.0" font-weight="600" fill="#166534">改编小红帽图文</text>
+      <text x="382.0" y="1812.5" font-size="11.5" fill="#667085">#1 #2 #3 #4 #5 #6 #7 #8 #9 </text>
+      <text x="382.0" y="1827.5" font-size="11.5" fill="#667085">#11 #12 #13 #14 #15 #16 #17</text>
+      </g>
+      <g class="node" data-id="n2"><rect x="688.0" y="1599.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="702.0" y="1625.5" font-size="15.0" font-weight="600" fill="#166534">定角色</text>
+      <text x="702.0" y="1642.5" font-size="11.5" fill="#667085">#2 #3 #4 #5 #6</text>
+      </g>
+      <g class="node" data-id="n3"><rect x="1008.0" y="1394.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="1420.5" font-size="15.0" font-weight="600" fill="#166534">小红帽形象</text>
+      <text x="1022.0" y="1437.5" font-size="11.5" fill="#667085">#2 #3 #4</text>
+      </g>
+      <g class="node" data-id="n4"><rect x="1328.0" y="1522.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="1548.0" font-size="15.0" font-weight="600" fill="#166534">斗篷颜色</text>
+      <text x="1342.0" y="1565.0" font-size="11.5" fill="#667085">#2 #3</text>
+      </g>
+      <g class="node" data-id="n5"><rect x="1328.0" y="1607.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="1633.0" font-size="15.0" font-weight="600" fill="#166534">篮子内容</text>
+      <text x="1342.0" y="1650.0" font-size="11.5" fill="#667085">#4</text>
+      </g>
+      <g class="node" data-id="n6"><rect x="1008.0" y="1479.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="1505.5" font-size="15.0" font-weight="600" fill="#166534">狼的角色</text>
+      <text x="1022.0" y="1522.5" font-size="11.5" fill="#667085">#5 #6</text>
+      </g>
+      <g class="node" data-id="n7"><rect x="1328.0" y="1692.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="1718.0" font-size="15.0" font-weight="600" fill="#166534">狼的动机</text>
+      <text x="1342.0" y="1735.0" font-size="11.5" fill="#667085">#5 #6</text>
+      </g>
+      <g class="node" data-id="n8"><rect x="688.0" y="1684.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="702.0" y="1710.5" font-size="15.0" font-weight="600" fill="#166534">结局设计</text>
+      <text x="702.0" y="1727.5" font-size="11.5" fill="#667085">#7 #8 #9</text>
+      </g>
+      <g class="node" data-id="n9"><rect x="368.0" y="1869.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="382.0" y="1895.5" font-size="15.0" font-weight="600" fill="#166534">女儿发烧（临时状况）</text>
+      <text x="382.0" y="1912.5" font-size="11.5" fill="#667085">#10 #27</text>
+      </g>
+      <g class="node" data-id="n10"><rect x="688.0" y="1769.5" width="200.0" height="74.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="702.0" y="1795.5" font-size="15.0" font-weight="600" fill="#166534">插画</text>
+      <text x="702.0" y="1812.5" font-size="11.5" fill="#667085">#11 #12 #13 #14 #15 #16 #21</text>
+      <text x="702.0" y="1827.5" font-size="11.5" fill="#667085"> #22 #23 #24 #25 #26 #28</text>
+      </g>
+      <g class="node" data-id="n11"><rect x="1008.0" y="1564.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="1590.5" font-size="15.0" font-weight="600" fill="#166534">画风选择</text>
+      <text x="1022.0" y="1607.5" font-size="11.5" fill="#667085">#11 #12</text>
+      </g>
+      <g class="node" data-id="n12"><rect x="1008.0" y="1649.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="1675.5" font-size="15.0" font-weight="600" fill="#166534">第一页内容</text>
+      <text x="1022.0" y="1692.5" font-size="11.5" fill="#667085">#12 #13 #14 #15 #16</text>
+      </g>
+      <g class="node" data-id="n13"><rect x="1328.0" y="1777.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="1803.0" font-size="15.0" font-weight="600" fill="#166534">妈妈台词</text>
+      <text x="1342.0" y="1820.0" font-size="11.5" fill="#667085">#14 #15</text>
+      </g>
+      <g class="node" data-id="n14"><rect x="688.0" y="1869.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="702.0" y="1895.5" font-size="15.0" font-weight="600" fill="#166534">朗读配音</text>
+      <text x="702.0" y="1912.5" font-size="11.5" fill="#667085">#17 #18 #19 #20</text>
+      </g>
+      <g class="node" data-id="n15"><rect x="1008.0" y="2074.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="2100.5" font-size="15.0" font-weight="600" fill="#166534">配音人选</text>
+      <text x="1022.0" y="2117.5" font-size="11.5" fill="#667085">#17</text>
+      </g>
+      <g class="node" data-id="n16"><rect x="1008.0" y="2159.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="2185.5" font-size="15.0" font-weight="600" fill="#166534">试听</text>
+      <text x="1022.0" y="2202.5" font-size="11.5" fill="#667085">#18 #19 #20</text>
+      </g>
+      <g class="node" data-id="n17"><rect x="1328.0" y="2117.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="2143.0" font-size="15.0" font-weight="600" fill="#166534">语速调整</text>
+      <text x="1342.0" y="2160.0" font-size="11.5" fill="#667085">#19 #20</text>
+      </g>
+      <g class="node" data-id="t21"><rect x="1008.0" y="1734.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="1760.5" font-size="15.0" font-weight="600" fill="#166534">外婆家场景亮度</text>
+      <text x="1022.0" y="1777.5" font-size="11.5" fill="#667085">#21 #22</text>
+      </g>
+      <g class="node" data-id="t22"><rect x="1328.0" y="1862.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="1888.0" font-size="15.0" font-weight="600" fill="#166534">窗外深森林</text>
+      <text x="1342.0" y="1905.0" font-size="11.5" fill="#667085">#22</text>
+      </g>
+      <g class="node" data-id="t23"><rect x="1008.0" y="1819.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="1845.5" font-size="15.0" font-weight="600" fill="#166534">封面定稿时间</text>
+      <text x="1022.0" y="1862.5" font-size="11.5" fill="#667085">#23</text>
+      </g>
+      <g class="node" data-id="t24"><rect x="1008.0" y="1904.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="1930.5" font-size="15.0" font-weight="600" fill="#166534">书名确定</text>
+      <text x="1022.0" y="1947.5" font-size="11.5" fill="#667085">#24 #25 #26</text>
+      </g>
+      <g class="node" data-id="t25"><rect x="1328.0" y="1947.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="1973.0" font-size="15.0" font-weight="600" fill="#166534">书名吓人顾虑</text>
+      <text x="1342.0" y="1990.0" font-size="11.5" fill="#667085">#25</text>
+      </g>
+      <g class="node" data-id="t26"><rect x="1328.0" y="2032.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1342.0" y="2058.0" font-size="15.0" font-weight="600" fill="#166534">书名改为看外婆</text>
+      <text x="1342.0" y="2075.0" font-size="11.5" fill="#667085">#26</text>
+      </g>
+      <g class="node" data-id="t28"><rect x="1008.0" y="1989.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="2015.5" font-size="15.0" font-weight="600" fill="#166534">封面画背影</text>
+      <text x="1022.0" y="2032.5" font-size="11.5" fill="#667085">#28</text>
+      </g>
+      <g class="node" data-id="t29"><rect x="688.0" y="1954.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="702.0" y="1980.5" font-size="15.0" font-weight="600" fill="#166534">未定项盘点</text>
+      <text x="702.0" y="1997.5" font-size="11.5" fill="#667085">#29</text>
+      </g>
+      <g class="node" data-id="t30"><rect x="688.0" y="2039.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="702.0" y="2065.5" font-size="15.0" font-weight="600" fill="#166534">今日已定清单</text>
+      <text x="702.0" y="2082.5" font-size="11.5" fill="#667085">#30 #31</text>
+      </g>
+      <g class="node" data-id="t31"><rect x="1008.0" y="2244.5" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="1022.0" y="2270.5" font-size="15.0" font-weight="600" fill="#166534">标注未定项</text>
+      <text x="1022.0" y="2287.5" font-size="11.5" fill="#667085">#31</text>
+      </g>
+      <g class="node" data-id="turn1"><rect x="48.0" y="92.0" width="200.0" height="114.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="118.0" font-size="15.0" font-weight="600" fill="#166534">#1 我想把《小红帽》改</text>
+      <text x="62.0" y="138.0" font-size="15.0" font-weight="600" fill="#166534">成一本给五岁孩子看的绘</text>
+      <text x="62.0" y="158.0" font-size="15.0" font-weight="600" fill="#166534">本，</text>
+      <text x="62.0" y="175.0" font-size="11.5" fill="#667085">我想把《小红帽》改成一本给五</text>
+      <text x="62.0" y="190.0" font-size="11.5" fill="#667085">岁孩子看的图文，先一起把角色</text>
+      </g>
+      <g class="node" data-id="turn2"><rect x="48.0" y="232.0" width="200.0" height="114.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="258.0" font-size="15.0" font-weight="600" fill="#166534">#2 小红帽的斗篷用什么</text>
+      <text x="62.0" y="278.0" font-size="15.0" font-weight="600" fill="#166534">颜色好，正红会不会太扎</text>
+      <text x="62.0" y="298.0" font-size="15.0" font-weight="600" fill="#166534">眼</text>
+      <text x="62.0" y="315.0" font-size="11.5" fill="#667085">小红帽的斗篷用什么颜色好，正</text>
+      <text x="62.0" y="330.0" font-size="11.5" fill="#667085">红会不会太扎眼</text>
+      </g>
+      <g class="node" data-id="turn3"><rect x="48.0" y="372.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="398.0" font-size="15.0" font-weight="600" fill="#166534">#3 那就深红。她篮子里</text>
+      <text x="62.0" y="418.0" font-size="15.0" font-weight="600" fill="#166534">装点什么合适</text>
+      <text x="62.0" y="435.0" font-size="11.5" fill="#667085">那就深红。她篮子里装点什么合</text>
+      <text x="62.0" y="450.0" font-size="11.5" fill="#667085">适</text>
+      </g>
+      <g class="node" data-id="turn4"><rect x="48.0" y="492.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="518.0" font-size="15.0" font-weight="600" fill="#166534">#4 果酱和面包行。接下</text>
+      <text x="62.0" y="538.0" font-size="15.0" font-weight="600" fill="#166534">来想想狼这个角色</text>
+      <text x="62.0" y="555.0" font-size="11.5" fill="#667085">果酱和面包行。接下来想想狼这</text>
+      <text x="62.0" y="570.0" font-size="11.5" fill="#667085">个角色</text>
+      </g>
+      <g class="node" data-id="turn5"><rect x="48.0" y="612.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="638.0" font-size="15.0" font-weight="600" fill="#166534">#5 狼的动机好像不太行</text>
+      <text x="62.0" y="658.0" font-size="15.0" font-weight="600" fill="#166534">，它现在就是单纯想吃人</text>
+      <text x="62.0" y="675.0" font-size="11.5" fill="#667085">狼的动机好像不太行，它现在就</text>
+      <text x="62.0" y="690.0" font-size="11.5" fill="#667085">是单纯想吃人</text>
+      </g>
+      <g class="node" data-id="turn6"><rect x="48.0" y="732.0" width="200.0" height="114.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="758.0" font-size="15.0" font-weight="600" fill="#166534">#6 对，改成它是冬天被</text>
+      <text x="62.0" y="778.0" font-size="15.0" font-weight="600" fill="#166534">森林赶出来、饿了好几天</text>
+      <text x="62.0" y="798.0" font-size="15.0" font-weight="600" fill="#166534">的狼</text>
+      <text x="62.0" y="815.0" font-size="11.5" fill="#667085">对，改成它是冬天被森林赶出来</text>
+      <text x="62.0" y="830.0" font-size="11.5" fill="#667085">、饿了好几天的狼</text>
+      </g>
+      <g class="node" data-id="turn7"><rect x="48.0" y="872.0" width="200.0" height="114.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="898.0" font-size="15.0" font-weight="600" fill="#166534">#7 这样好多了。那结局</text>
+      <text x="62.0" y="918.0" font-size="15.0" font-weight="600" fill="#166534">呢，猎人把狼肚子剖开太</text>
+      <text x="62.0" y="938.0" font-size="15.0" font-weight="600" fill="#166534">血腥</text>
+      <text x="62.0" y="955.0" font-size="11.5" fill="#667085">这样好多了。那结局呢，猎人把</text>
+      <text x="62.0" y="970.0" font-size="11.5" fill="#667085">狼肚子剖开太血腥了</text>
+      </g>
+      <g class="node" data-id="turn8"><rect x="48.0" y="1012.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1038.0" font-size="15.0" font-weight="600" fill="#166534">#8 结局改成猎人把狼吓</text>
+      <text x="62.0" y="1058.0" font-size="15.0" font-weight="600" fill="#166534">跑，外婆和小红帽都没事</text>
+      <text x="62.0" y="1075.0" font-size="11.5" fill="#667085">结局改成猎人把狼吓跑，外婆和</text>
+      <text x="62.0" y="1090.0" font-size="11.5" fill="#667085">小红帽都没事</text>
+      </g>
+      <g class="node" data-id="turn9"><rect x="48.0" y="1132.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1158.0" font-size="15.0" font-weight="600" fill="#166534">#9 好，结局这样就行</text>
+      <text x="62.0" y="1175.0" font-size="11.5" fill="#667085">好，结局这样就行</text>
+      </g>
+      <g class="node" data-id="turn10"><rect x="48.0" y="1217.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1243.0" font-size="15.0" font-weight="600" fill="#166534">#10 对了昨天我女儿发烧</text>
+      <text x="62.0" y="1263.0" font-size="15.0" font-weight="600" fill="#166534">，折腾了一晚上</text>
+      <text x="62.0" y="1280.0" font-size="11.5" fill="#667085">对了昨天我女儿发烧，折腾了一</text>
+      <text x="62.0" y="1295.0" font-size="11.5" fill="#667085">晚上</text>
+      </g>
+      <g class="node" data-id="turn11"><rect x="48.0" y="1337.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1363.0" font-size="15.0" font-weight="600" fill="#166534">#11 回到插画，画风想要</text>
+      <text x="62.0" y="1383.0" font-size="15.0" font-weight="600" fill="#166534">水彩还是蜡笔</text>
+      <text x="62.0" y="1400.0" font-size="11.5" fill="#667085">回到插画，画风想要水彩还是蜡</text>
+      <text x="62.0" y="1415.0" font-size="11.5" fill="#667085">笔</text>
+      </g>
+      <g class="node" data-id="turn12"><rect x="48.0" y="1457.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1483.0" font-size="15.0" font-weight="600" fill="#166534">#12 蜡笔吧，孩子喜欢。</text>
+      <text x="62.0" y="1503.0" font-size="15.0" font-weight="600" fill="#166534">那第一页画什么</text>
+      <text x="62.0" y="1520.0" font-size="11.5" fill="#667085">蜡笔吧，孩子喜欢。那第一页画</text>
+      <text x="62.0" y="1535.0" font-size="11.5" fill="#667085">什么</text>
+      </g>
+      <g class="node" data-id="turn13"><rect x="48.0" y="1577.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1603.0" font-size="15.0" font-weight="600" fill="#166534">#13 第一页画小红帽出门</text>
+      <text x="62.0" y="1623.0" font-size="15.0" font-weight="600" fill="#166534">，妈妈站在门口挥手</text>
+      <text x="62.0" y="1640.0" font-size="11.5" fill="#667085">第一页画小红帽出门，妈妈站在</text>
+      <text x="62.0" y="1655.0" font-size="11.5" fill="#667085">门口挥手</text>
+      </g>
+      <g class="node" data-id="turn14"><rect x="48.0" y="1697.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1723.0" font-size="15.0" font-weight="600" fill="#166534">#14 妈妈要不要有一句台</text>
+      <text x="62.0" y="1743.0" font-size="15.0" font-weight="600" fill="#166534">词</text>
+      <text x="62.0" y="1760.0" font-size="11.5" fill="#667085">妈妈要不要有一句台词</text>
+      </g>
+      <g class="node" data-id="turn15"><rect x="48.0" y="1802.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1828.0" font-size="15.0" font-weight="600" fill="#166534">#15 台词就一句，别走小</text>
+      <text x="62.0" y="1848.0" font-size="15.0" font-weight="600" fill="#166534">路</text>
+      <text x="62.0" y="1865.0" font-size="11.5" fill="#667085">台词就一句，别走小路</text>
+      </g>
+      <g class="node" data-id="turn16"><rect x="48.0" y="1907.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="1933.0" font-size="15.0" font-weight="600" fill="#166534">#16 这页可以了。朗读配</text>
+      <text x="62.0" y="1953.0" font-size="15.0" font-weight="600" fill="#166534">音你想找谁读</text>
+      <text x="62.0" y="1970.0" font-size="11.5" fill="#667085">这页可以了。朗读配音你想找谁</text>
+      <text x="62.0" y="1985.0" font-size="11.5" fill="#667085">读</text>
+      </g>
+      <g class="node" data-id="turn17"><rect x="48.0" y="2027.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2053.0" font-size="15.0" font-weight="600" fill="#166534">#17 找个女声，语速慢一</text>
+      <text x="62.0" y="2073.0" font-size="15.0" font-weight="600" fill="#166534">点</text>
+      <text x="62.0" y="2090.0" font-size="11.5" fill="#667085">找个女声，语速慢一点</text>
+      </g>
+      <g class="node" data-id="turn18"><rect x="48.0" y="2132.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2158.0" font-size="15.0" font-weight="600" fill="#166534">#18 那先录一段试听一下</text>
+      <text x="62.0" y="2175.0" font-size="11.5" fill="#667085">那先录一段试听一下</text>
+      </g>
+      <g class="node" data-id="turn19"><rect x="48.0" y="2217.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2243.0" font-size="15.0" font-weight="600" fill="#166534">#19 试听听着还是有点快</text>
+      <text x="62.0" y="2260.0" font-size="11.5" fill="#667085">试听听着还是有点快</text>
+      </g>
+      <g class="node" data-id="turn20"><rect x="48.0" y="2302.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2328.0" font-size="15.0" font-weight="600" fill="#166534">#20 那就再慢一点，重录</text>
+      <text x="62.0" y="2348.0" font-size="15.0" font-weight="600" fill="#166534">一遍</text>
+      <text x="62.0" y="2365.0" font-size="11.5" fill="#667085">那就再慢一点，重录一遍</text>
+      </g>
+      <g class="node" data-id="turn21"><rect x="48.0" y="2407.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2433.0" font-size="15.0" font-weight="600" fill="#166534">#21 好。外婆家的场景要</text>
+      <text x="62.0" y="2453.0" font-size="15.0" font-weight="600" fill="#166534">不要画得亮一些</text>
+      <text x="62.0" y="2470.0" font-size="11.5" fill="#667085">好。外婆家的场景要不要画得亮</text>
+      <text x="62.0" y="2485.0" font-size="11.5" fill="#667085">一些</text>
+      </g>
+      <g class="node" data-id="turn22"><rect x="48.0" y="2527.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2553.0" font-size="15.0" font-weight="600" fill="#166534">#22 亮一点，但窗子外面</text>
+      <text x="62.0" y="2573.0" font-size="15.0" font-weight="600" fill="#166534">要看见深森林</text>
+      <text x="62.0" y="2590.0" font-size="11.5" fill="#667085">亮一点，但窗子外面要看见深森</text>
+      <text x="62.0" y="2605.0" font-size="11.5" fill="#667085">林</text>
+      </g>
+      <g class="node" data-id="turn23"><rect x="48.0" y="2647.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2673.0" font-size="15.0" font-weight="600" fill="#166534">#23 这个可以。顺便问下</text>
+      <text x="62.0" y="2693.0" font-size="15.0" font-weight="600" fill="#166534">封面什么时候定</text>
+      <text x="62.0" y="2710.0" font-size="11.5" fill="#667085">这个可以。顺便问下封面什么时</text>
+      <text x="62.0" y="2725.0" font-size="11.5" fill="#667085">候定</text>
+      </g>
+      <g class="node" data-id="turn24"><rect x="48.0" y="2767.0" width="200.0" height="59.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2793.0" font-size="15.0" font-weight="600" fill="#166534">#24 先把书名定了吧</text>
+      <text x="62.0" y="2810.0" font-size="11.5" fill="#667085">先把书名定了吧</text>
+      </g>
+      <g class="node" data-id="turn25"><rect x="48.0" y="2852.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2878.0" font-size="15.0" font-weight="600" fill="#166534">#25 书名《小红帽和饿狼</text>
+      <text x="62.0" y="2898.0" font-size="15.0" font-weight="600" fill="#166534">》会不会太吓人</text>
+      <text x="62.0" y="2915.0" font-size="11.5" fill="#667085">书名《小红帽和饿狼》会不会太</text>
+      <text x="62.0" y="2930.0" font-size="11.5" fill="#667085">吓人</text>
+      </g>
+      <g class="node" data-id="turn26"><rect x="48.0" y="2972.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="2998.0" font-size="15.0" font-weight="600" fill="#166534">#26 那就《小红帽去看外</text>
+      <text x="62.0" y="3018.0" font-size="15.0" font-weight="600" fill="#166534">婆》</text>
+      <text x="62.0" y="3035.0" font-size="11.5" fill="#667085">那就《小红帽去看外婆》</text>
+      </g>
+      <g class="node" data-id="turn27"><rect x="48.0" y="3077.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="3103.0" font-size="15.0" font-weight="600" fill="#166534">#27 对了明天幼儿园要交</text>
+      <text x="62.0" y="3123.0" font-size="15.0" font-weight="600" fill="#166534">手工作业，这个先不聊</text>
+      <text x="62.0" y="3140.0" font-size="11.5" fill="#667085">对了明天幼儿园要交手工作业，</text>
+      <text x="62.0" y="3155.0" font-size="11.5" fill="#667085">这个先不聊</text>
+      </g>
+      <g class="node" data-id="turn28"><rect x="48.0" y="3197.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="3223.0" font-size="15.0" font-weight="600" fill="#166534">#28 回到封面，画成小红</text>
+      <text x="62.0" y="3243.0" font-size="15.0" font-weight="600" fill="#166534">帽的背影吧</text>
+      <text x="62.0" y="3260.0" font-size="11.5" fill="#667085">回到封面，画成小红帽的背影吧</text>
+      </g>
+      <g class="node" data-id="turn29"><rect x="48.0" y="3302.0" width="200.0" height="94.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="3328.0" font-size="15.0" font-weight="600" fill="#166534">#29 封面先这样。现在还</text>
+      <text x="62.0" y="3348.0" font-size="15.0" font-weight="600" fill="#166534">有哪些没定下来的</text>
+      <text x="62.0" y="3365.0" font-size="11.5" fill="#667085">封面先这样。现在还有哪些没定</text>
+      <text x="62.0" y="3380.0" font-size="11.5" fill="#667085">下来的</text>
+      </g>
+      <g class="node" data-id="turn30"><rect x="48.0" y="3422.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="3448.0" font-size="15.0" font-weight="600" fill="#166534">#30 那把今天定的都列一</text>
+      <text x="62.0" y="3468.0" font-size="15.0" font-weight="600" fill="#166534">遍</text>
+      <text x="62.0" y="3485.0" font-size="11.5" fill="#667085">那把今天定的都列一遍</text>
+      </g>
+      <g class="node" data-id="turn31"><rect x="48.0" y="3527.0" width="200.0" height="79.0" rx="8" fill="#f7fdf8" stroke="#15803d" stroke-width="1.2"/>
+      <text x="62.0" y="3553.0" font-size="15.0" font-weight="600" fill="#166534">#31 清单里把还没定的也</text>
+      <text x="62.0" y="3573.0" font-size="15.0" font-weight="600" fill="#166534">标出来</text>
+      <text x="62.0" y="3590.0" font-size="11.5" fill="#667085">清单里把还没定的也标出来</text>
+      </g>
+      <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#98a2b3"/></marker><marker id="arrowOpen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626"/></marker><marker id="arrowInferred" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/></marker></defs>
+      </svg>
+    </div>
+  </section>
+</div>
+<footer>
+  重新生成：<code>node tools/probes/build-closure-page.mjs --run fairytale-run3</code>　·　
+  图 JSON：<code>tools/probes/.out/graph/fairytale-run3-raw.json</code>、<code>tools/probes/.out/graph/fairytale-run3-closure.json</code><br>
+  校验输出：<code>✓ 原样：fairytale-run3 · 58 nodes · 94 edges · provenance=None · digest=6e6c9168179d</code>
+</footer>
+</html>

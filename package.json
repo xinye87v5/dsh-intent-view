@@ -1,0 +1,96 @@
+{
+ "name": "dsh-intent-view",
+ "version": "0.2.0",
+ "description": "DSH 主区的意图面板：从会话日志算出任务结构树（谁挂在谁下、哪些回合属于哪件事），逐回合标出 agent 的理解是否偏离与回合离父枝目标远近；结构可人工编辑（拖拽/合并/拆分/删枝）且不会被重算冲掉。宿主侧一条四段流水线 + 增量归属，浏览器只渲染。",
+ "license": "MIT",
+ "repository": {
+  "type": "git",
+  "url": "git+https://github.com/xinye87v5/dsh-intent-view.git"
+ },
+ "homepage": "https://github.com/xinye87v5/dsh-intent-view#readme",
+ "bugs": {
+  "url": "https://github.com/xinye87v5/dsh-intent-view/issues"
+ },
+ "type": "module",
+ "main": "lib/index.js",
+ "exports": {
+  ".": {
+   "types": "./lib/index.d.ts",
+   "default": "./lib/index.js"
+  },
+  "./client": {
+   "types": "./lib/client/index.d.ts",
+   "default": "./lib/client.js"
+  },
+  "./cordis.patch.yml": "./cordis.patch.yml"
+ },
+ "files": [
+  "lib",
+  "src",
+  "cordis.patch.yml",
+  "README.md",
+  "CHANGELOG.md",
+  "LICENSE"
+ ],
+ "engines": {
+  "node": ">=20",
+  "dsh": ">=0.1.2-rc.1"
+ },
+ "peerDependencies": {
+  "@deepseek-ai/cordis": "^4.0.2",
+  "@deepseek-ai/dsh-llm": "^0.1.2-rc.1",
+  "@deepseek-ai/dsh-session": "^0.1.2-rc.1",
+  "@deepseek-ai/dsh-session-projection": "^0.1.2-rc.1",
+  "react": "^18.2.0",
+  "zod": "^3.23.0 || ^4.0.0"
+ },
+ "dsh": {
+  "bundle": {
+   "patch": "./cordis.patch.yml"
+  },
+  "client": {
+   "platform": "web",
+   "inject": [
+    "@deepseek-ai/dsh-client-modules"
+   ]
+  }
+ },
+ "devDependencies": {
+  "@deepseek-ai/cordis": "^4.0.2",
+  "@types/react": "^18.2.0",
+  "react": "^18.2.0",
+  "react-dom": "^18.2.0",
+  "typescript": "^5.9.0"
+ },
+ "scripts": {
+  "build": "rm -rf lib && tsc -p tsconfig.json && node scripts/wrap-client.mjs && node scripts/check-client.mjs && node scripts/verify-shared.cjs && node scripts/verify-task-graph.cjs && node scripts/verify-task-overrides.cjs && node scripts/verify-override-storage.cjs && node scripts/verify-override-matrix.cjs && node scripts/verify-task-pipeline-port.cjs && node scripts/verify-task-structure.cjs && node scripts/verify-task-tree.cjs && node scripts/verify-verdict-storage.cjs && node scripts/verify-semantic-store.cjs && node scripts/verify-judge-cases.cjs && node scripts/verify-intent-tab.cjs && node scripts/verify-handoff.cjs && node scripts/verify-json-body.cjs",
+  "typecheck": "tsc -p tsconfig.json --noEmit",
+  "check:client": "node scripts/check-client.mjs",
+  "check:shared": "node scripts/verify-shared.cjs",
+  "check:task-graph": "node scripts/verify-task-graph.cjs",
+  "check:task-overrides": "node scripts/verify-task-overrides.cjs",
+  "check:override-storage": "node scripts/verify-override-storage.cjs",
+  "check:pipeline-port": "node scripts/verify-task-pipeline-port.cjs",
+  "check:task-structure": "node scripts/verify-task-structure.cjs",
+  "check:task-tree": "node scripts/verify-task-tree.cjs",
+  "check:intent-tab": "node scripts/verify-intent-tab.cjs",
+  "e2e": "node scripts/e2e-panel.mjs",
+  "check:judge": "node tools/probes/judge-cases.mjs --run",
+  "check:judge:parent": "node tools/probes/judge-cases.mjs --score-parent research/judge-cases-4.md",
+  "check:override-matrix": "node scripts/verify-override-matrix.cjs",
+  "check:live:storage": "node tools/probes/panel-storage-check.mjs",
+  "prepare": "npm run build",
+  "check:live:panel": "node tools/probes/conversation-view-check.mjs",
+  "check:json-body": "node scripts/verify-json-body.cjs",
+  "check:handoff": "node scripts/verify-handoff.cjs"
+ },
+ "author": "xinye87v5",
+ "keywords": [
+  "dsh",
+  "dsh-plugin",
+  "cordis",
+  "intent",
+  "session",
+  "dag"
+ ]
+}
